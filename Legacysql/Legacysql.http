@@ -1,0 +1,6 @@
+@Legacysql_HostAddress = http://localhost:5148
+
+GET {{Legacysql_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
