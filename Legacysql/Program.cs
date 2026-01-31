@@ -1,75 +1,53 @@
-using Legacysql.Models; 
+using Legacysql.Data;
+using Microsoft.AspNetCore.Mvc; 
 using Microsoft.EntityFrameworkCore;
-using Legacysql.Services;
+using Legacysql.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. SERVICES (The Setup) ---
+// --- 1. THE FIX: Register the Database Context Here ---
+// This tells .NET: "Whenever someone asks for AppDbContext, give them this SQL connection."
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+/*
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(connectionString));
+*/
+
+builder.Services.AddDbContext<SupportTicketsDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Server=(localdb)\\MSSQLLocalDB;Database=SupportTicketsDB;Trusted_Connection=True;TrustServerCertificate=True;"));
+// -------------------------------------------------------
+
+
+builder.Services.AddControllers();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-//  Register the Database ---
-// "Use SQL Server with this connection string"
-builder.Services.AddDbContext<SupportTicketsDbContext>(options =>
-    options.UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=SupportTicketsDB;Trusted_Connection=True;TrustServerCertificate=True;"));
 
-//Register the services
-
-builder.Services.AddScoped<IAIService, MockAIService>();
-//builder.Services.AddScoped<IAIService, OpenAIService>();
 
 var app = builder.Build();
 
-// --- 2. MIDDLEWARE (The Pipeline) ---
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.UseHttpsRedirection();
 
-// --- 3. ENDPOINTS (The Menu) ---
-
-// Endpoint 1: Get All Tickets
-app.MapGet("/tickets", (SupportTicketsDbContext db) =>
+// --- 2. THE API ENDPOINT ---
+/*
+// We use the 'db' parameter here. Because we registered it above, .NET now knows what it is.
+app.MapGet("/api/projects", async (AppDbContext db) =>
 {
-    // This is EF Core translation: "SELECT * FROM Tickets"
-    return db.Tickets.ToList();
-})
-.WithName("GetTickets");
-
-//AI end point
-
-app.MapPost("/ask", async (String question, IAIService ai, SupportTicketsDbContext db) =>
-{
-    String sqlQuery = "";
-    //exception handling
-    try
-    {
-        // sending the user question 
-        sqlQuery = await ai.GetSqlFromText(question);
-
-        var data = await db.Tickets.FromSqlRaw(sqlQuery).ToListAsync();
-
-        return Results.Ok(new
-        {
-            UserQuestion = question,
-            AI_Generated_SQL = sqlQuery,
-            Results = data
-        });
-    }
-    catch(Exception ex)
-    {
-        return Results.Problem(
-            detail: ex.Message,
-            title: "AI Generation Failed to convert plaintext  to sql query",
-            statusCode: 500,
-            extensions: new Dictionary<string, object?>
-            {
-                {"failed_query",sqlQuery }
-            });
-    }
-
-}).WithName("AskAI");
+    // This connects to Azure and grabs the data
+    return await db.Projects.ToListAsync();
+});
+*/
+app.MapControllers();
 
 app.Run();

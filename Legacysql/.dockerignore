@@ -1,6 +1,8 @@
 bin/
 obj/
+.git/
 .vs/
-*.user
+.vscode/
 appsettings.Development.json
-appsettings.Local.json
+*.user
+*.db
